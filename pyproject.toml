@@ -33,7 +33,7 @@ dependencies = [
     "uvicorn==0.52.0",
     "python-multipart==0.0.32",
     "trame==3.13.2",
-    "trame-vtk==2.11.8",
+    "trame-vtk==2.11.15",
     "trame-vuetify==3.2.5",
     "nest-asyncio2==1.7.2",
 ]
