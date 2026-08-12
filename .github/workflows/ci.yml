@@ -31,7 +31,7 @@ jobs:
       - name: Install Gmsh GLU runtime on Linux
         if: runner.os == 'Linux'
         run: sudo apt-get install -y libglu1-mesa
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
@@ -76,7 +76,7 @@ jobs:
         uses: pyvista/setup-headless-display-action@v3
         with:
           qt: true
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
