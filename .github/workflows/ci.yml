@@ -57,7 +57,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Tests staged tracked-file changes." }
       - name: Upload failure evidence
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ci-failure-${{ matrix.os }}
           path: |
@@ -88,7 +88,7 @@ jobs:
           PYVISTA_OFF_SCREEN: "true"
           PAL_E2E_ARTIFACT_DIR: artifacts/e2e
         run: python -m pytest -q tests/e2e --junitxml=e2e-results.xml
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: browser-e2e-evidence
