@@ -26,9 +26,17 @@
 
 ## 💻 界面预览
 
-| 主翼表面真实点选 | 求解后壁面 Y+ |
-|---|---|
-| ![主翼点选](artifacts/e2e/public_workbench_surface_selected.png) | ![壁面 Y+](artifacts/e2e/public_workbench_y_plus.png) |
+### 👆 主翼表面真实点选
+
+<p align="center">
+  <img src="artifacts/e2e/public_workbench_surface_selected.png" alt="主翼表面真实点选界面" width="100%">
+</p>
+
+### 🌈 求解后壁面 Y+
+
+<p align="center">
+  <img src="artifacts/e2e/public_workbench_y_plus.png" alt="求解后壁面 Y+ 界面" width="100%">
+</p>
 
 > 截图使用公开合成模型和可重现测试数组，用于验证三维交互、点选和科学权限门槛，不是飞行器气动正确性证明。
 
