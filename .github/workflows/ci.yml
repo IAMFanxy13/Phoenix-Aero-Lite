@@ -25,7 +25,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Setup official PyVista headless display
-        uses: pyvista/setup-headless-display-action@v3
+        uses: pyvista/setup-headless-display-action@v4
         with:
           qt: true
       - name: Install Gmsh GLU runtime on Linux
@@ -73,7 +73,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Setup official PyVista headless display
-        uses: pyvista/setup-headless-display-action@v3
+        uses: pyvista/setup-headless-display-action@v4
         with:
           qt: true
       - uses: actions/setup-python@v5
