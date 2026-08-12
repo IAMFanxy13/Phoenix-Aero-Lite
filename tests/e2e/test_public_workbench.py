@@ -18,6 +18,7 @@ import pytest
 import pyvista as pv
 import uvicorn
 
+from phoenix_aero_lite.geometry.gmsh_geometry import GmshGeometryAdapter
 from phoenix_aero_lite.utilities.first_run_check import FirstRunCheck, FirstRunReport
 from phoenix_aero_lite.web.app import create_app
 from phoenix_aero_lite.web.jobs import LocalJobService
@@ -30,17 +31,63 @@ pytestmark = pytest.mark.e2e
 def _public_synthetic_aircraft(path: Path) -> Path:
     """Create a public synthetic STEP through the official Gmsh OCC API."""
 
+    def extrude_xy(points: tuple[tuple[float, float], ...], z: float, height: float):
+        point_tags = [gmsh.model.occ.addPoint(x, y, z) for x, y in points]
+        line_tags = [
+            gmsh.model.occ.addLine(point_tags[index], point_tags[(index + 1) % len(points)])
+            for index in range(len(points))
+        ]
+        wire = gmsh.model.occ.addCurveLoop(line_tags)
+        face = gmsh.model.occ.addPlaneSurface([wire])
+        gmsh.model.occ.extrude([(2, face)], 0, 0, height)
+
+    def extrude_xz(points: tuple[tuple[float, float], ...], y: float, width: float):
+        point_tags = [gmsh.model.occ.addPoint(x, y, z) for x, z in points]
+        line_tags = [
+            gmsh.model.occ.addLine(point_tags[index], point_tags[(index + 1) % len(points)])
+            for index in range(len(points))
+        ]
+        wire = gmsh.model.occ.addCurveLoop(line_tags)
+        face = gmsh.model.occ.addPlaneSurface([wire])
+        gmsh.model.occ.extrude([(2, face)], 0, width, 0)
+
     gmsh.initialize()
     previous_target_unit = gmsh.option.getString("Geometry.OCCTargetUnit")
     try:
         gmsh.option.setString("Geometry.OCCTargetUnit", "MM")
-        gmsh.model.add("public_synthetic_aircraft")
+        gmsh.model.add("public_fixed_wing_uav")
         # STEP commonly carries CAD coordinates in millimetres.  These values
-        # produce a 1.5 m x 2.2 m public test shape after the adapter's unit
+        # produce a 2.4 m long, 2.9 m span public UAV after the adapter's unit
         # normalization, matching the same official OCC path as user models.
-        body = gmsh.model.occ.addBox(-750, -120, -100, 1500, 240, 200)
-        wing = gmsh.model.occ.addBox(-180, -1100, -35, 550, 2200, 70)
-        gmsh.model.occ.fuse([(3, body)], [(3, wing)], removeObject=True, removeTool=True)
+        gmsh.model.occ.addCone(-1150, 0, 0, 250, 0, 0, 35, 130)
+        gmsh.model.occ.addCylinder(-900, 0, 0, 1800, 0, 0, 130)
+        gmsh.model.occ.addCone(900, 0, 0, 350, 0, 0, 130, 12)
+
+        extrude_xy(
+            ((250, 80), (-300, 80), (-420, 1450), (-50, 1450)),
+            -35,
+            70,
+        )
+        extrude_xy(
+            ((-300, -80), (250, -80), (-50, -1450), (-420, -1450)),
+            -35,
+            70,
+        )
+        extrude_xy(
+            ((-620, 70), (-1000, 70), (-1080, 600), (-760, 600)),
+            -22,
+            44,
+        )
+        extrude_xy(
+            ((-1000, -70), (-620, -70), (-760, -600), (-1080, -600)),
+            -22,
+            44,
+        )
+        extrude_xz(
+            ((-700, 65), (-1080, 65), (-1050, 340), (-880, 550)),
+            -28,
+            56,
+        )
         gmsh.model.occ.synchronize()
         gmsh.write(str(path))
     finally:
@@ -48,6 +95,19 @@ def _public_synthetic_aircraft(path: Path) -> Path:
         gmsh.finalize()
     assert path.is_file() and path.stat().st_size > 0
     return path
+
+
+def test_public_synthetic_aircraft_has_uav_proportions(tmp_path: Path):
+    model = _public_synthetic_aircraft(tmp_path / "public-uav.step")
+
+    inspection = GmshGeometryAdapter().inspect_step(model)
+
+    length, span, height = inspection.dimensions_m
+    assert inspection.volume_count >= 6
+    assert inspection.surface_count > 25
+    assert length > 2.0
+    assert span > 2.6
+    assert height > 0.45
 
 
 def _ready_report() -> FirstRunReport:
