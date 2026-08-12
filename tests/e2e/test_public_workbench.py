@@ -143,10 +143,6 @@ def _public_grid_result(
         "<html><body><h1>Public synthetic E2E report</h1></body></html>",
         encoding="utf-8",
     )
-    volume = pv.ImageData(dimensions=(10, 9, 8), spacing=(0.2, 0.2, 0.2))
-    flow = volume.cast_to_unstructured_grid()
-    flow.point_data["Velocity"] = np.tile((15.0, 0.0, 0.0), (flow.n_points, 1))
-    flow.save(case_root / "flow.vtu")
     preview = GmshGeometryAdapter().build_surface_preview(
         source,
         case_root / "public_uav_surface.vtk",
@@ -162,13 +158,30 @@ def _public_grid_result(
     axial = (points[:, 0] - minimum[0]) / ranges[0]
     spanwise = np.abs(points[:, 1]) / max(np.max(np.abs(points[:, 1])), 1e-12)
     vertical = (points[:, 2] - minimum[2]) / ranges[2]
-    pressure_coefficient = -0.85 + 1.45 * axial - 0.25 * spanwise
-    surface.point_data["Pressure_Coefficient"] = pressure_coefficient
-    surface.point_data["Pressure"] = 101_325.0 + 480.0 * pressure_coefficient
-    surface.point_data["Y_Plus"] = 0.2 + 3.5 * (
-        0.45 * axial + 0.35 * spanwise + 0.20 * vertical
+    coordinate_field = 0.45 * axial + 0.35 * spanwise + 0.20 * vertical
+    normalized_field = (coordinate_field - coordinate_field.min()) / max(
+        np.ptp(coordinate_field),
+        1e-12,
     )
+    pressure_coefficient = -0.8 + 1.4 * normalized_field
+    surface.point_data["Pressure_Coefficient"] = pressure_coefficient
+    surface.point_data["Pressure"] = 100_900.0 + 500.0 * normalized_field
+    surface.point_data["Y_Plus"] = 0.2 + 3.5 * normalized_field
     surface.cast_to_unstructured_grid().save(case_root / "surface_flow.vtu")
+
+    padding = max(float(surface.length) * 0.85, 1.0)
+    flow_minimum = minimum - padding
+    flow_maximum = points.max(axis=0) + padding
+    dimensions = np.asarray((31, 31, 25), dtype=int)
+    spacing = (flow_maximum - flow_minimum) / (dimensions - 1)
+    volume = pv.ImageData(
+        dimensions=tuple(int(value) for value in dimensions),
+        spacing=tuple(float(value) for value in spacing),
+        origin=tuple(float(value) for value in flow_minimum),
+    )
+    flow = volume.cast_to_unstructured_grid()
+    flow.point_data["Velocity"] = np.tile((15.0, 0.0, 0.0), (flow.n_points, 1))
+    flow.save(case_root / "flow.vtu")
     stdout = case_root / "stdout.txt"
     stderr = case_root / "stderr.txt"
     stdout.write_text("SU2 public synthetic E2E output", encoding="utf-8")
@@ -374,7 +387,7 @@ def test_public_step_upload_renders_real_picker_and_toggles_surface(tmp_path: Pa
                 )
                 canvas = frame.locator("canvas").first
                 expect(canvas).to_be_visible(timeout=60_000)
-                canvas.click(position={"x": 300, "y": 250})
+                canvas.click(position={"x": 350, "y": 250})
                 expect(page.locator("#wing-selection-count")).not_to_contain_text(
                     "已选择 0 个曲面", timeout=30_000
                 )
@@ -422,7 +435,7 @@ def test_public_step_upload_renders_real_picker_and_toggles_surface(tmp_path: Pa
                     encoding="utf-8",
                 )
 
-                canvas.click(position={"x": 300, "y": 250})
+                canvas.click(position={"x": 350, "y": 250})
                 expect(page.locator("#wing-selection-count")).to_contain_text(
                     "已选择 0 个曲面", timeout=30_000
                 )
