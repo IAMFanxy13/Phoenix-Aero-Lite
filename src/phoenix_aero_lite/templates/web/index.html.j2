@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Phoenix Aero Lite</title>
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark">P</span><div><p>本地固定翼 CFD</p><h1>Phoenix Aero Lite</h1></div></div>
+    <div class="runtime-area">
+      <button id="preflight-status" class="local-badge" type="button" aria-expanded="false" aria-controls="preflight-details"><span></span>正在检查本机环境…</button>
+      <div id="preflight-details" class="preflight-details hidden" role="status" aria-live="polite"></div>
+    </div>
+  </header>
+
+  <form id="job-form" class="workbench">
+    <aside class="steps-panel panel" aria-label="分析步骤">
+      <p class="panel-kicker">操作</p>
+      <ol class="steps">
+        <li class="active" data-step="model" data-icon="🛩️"><span aria-hidden="true">🛩️</span><div><strong>上传</strong><small>STEP / STP</small></div></li>
+        <li data-step="confirm" data-icon="🧭"><span aria-hidden="true">🧭</span><div><strong>方向</strong><small>机头 · 上方</small></div></li>
+        <li data-step="condition" data-icon="🌬️"><span aria-hidden="true">🌬️</span><div><strong>工况</strong><small>速度 · 迎角 · 质量</small></div></li>
+        <li data-step="run" data-icon="⚙️"><span aria-hidden="true">⚙️</span><div><strong>分析</strong><small>网格 · SU2</small></div></li>
+        <li data-step="result" data-icon="🌈"><span aria-hidden="true">🌈</span><div><strong>结果</strong><small>可信度 · 流场</small></div></li>
+      </ol>
+      <div class="scope-note"><strong>适用范围</strong><p>5–50 m/s · Mach &lt; 0.3 · 小型固定翼</p></div>
+    </aside>
+
+    <main class="scene-panel panel">
+      <div class="scene-head">
+        <div><p class="panel-kicker" data-icon="🛩️">🛩️ 三维</p><h2 id="scene-title">等待上传飞机模型</h2></div>
+        <div class="scene-tabs" aria-label="三维内容">
+          <button class="scene-tab active" type="button" data-view="model" aria-label="三维模型">🛩️ 模型</button>
+          <button class="scene-tab" type="button" data-view="pressure" aria-label="压力云图" disabled>🌈 压力</button>
+          <button class="scene-tab" type="button" data-view="yplus" aria-label="壁面 Y+ 云图" disabled>🧱 Y+</button>
+          <button class="scene-tab" type="button" data-view="velocity" aria-label="速度截面" disabled>💨 速度</button>
+          <button class="scene-tab" type="button" data-view="streamlines" aria-label="三维流线" disabled>〰️ 流线</button>
+        </div>
+        <select id="pressure-field" class="field-select hidden" aria-label="压力字段"><option value="cp">压力系数 Cp</option><option value="pressure">静压力 Pa</option></select>
+        <select id="velocity-preset" class="field-select hidden" aria-label="速度截面"><option value="longitudinal">纵向中心面</option><option value="wing">主翼水平面</option><option value="wake">尾流截面</option></select>
+        <select id="streamline-density" class="field-select hidden" aria-label="流线密度"><option value="sparse">少量流线</option><option value="standard" selected>标准流线</option><option value="dense">密集流线</option></select>
+      </div>
+      <div class="viewer-shell">
+        <div id="viewer-placeholder" class="viewer-placeholder">
+          <div class="aircraft-glyph">✈</div>
+          <strong>上传 STEP 后，这里显示真实三维表面</strong>
+          <span>可旋转、缩放和平移；不会修改原始文件</span>
+        </div>
+        <iframe id="model-viewer" class="model-viewer hidden" title="三维模型预览" sandbox="allow-scripts allow-same-origin"></iframe>
+        <div id="scene-warning" class="scene-warning hidden"></div>
+        <div id="viewer-busy" class="viewer-busy hidden"><span></span>正在用 Gmsh OpenCASCADE 检查并生成预览…</div>
+      </div>
+      <div class="scene-toolbar" aria-label="三维视图工具">
+        <button type="button" data-camera="top">俯视</button><button type="button" data-camera="front">正视</button><button type="button" data-camera="side">侧视</button><button type="button" data-camera="isometric">等轴测</button><button type="button" data-camera="reset">恢复视角</button><button id="toggle-axes" type="button" aria-pressed="true">坐标轴：开</button><button id="toggle-colorbar" type="button" aria-pressed="true">色标：开</button><button id="toggle-fullscreen" type="button">全屏</button><button id="capture-scene" type="button">截图</button>
+      </div>
+      <div id="pressure-controls" class="scene-controls hidden">
+        <label>色标最小值<input id="scalar-min" type="number" step="any"></label><label>色标最大值<input id="scalar-max" type="number" step="any"></label>
+        <button id="apply-scalar-range" type="button">应用范围</button><button id="reset-scalar-range" type="button">恢复自动</button><output id="scalar-probe">蓝色为低压，红色为高压；点击表面读取数值</output>
+      </div>
+      <div id="velocity-controls" class="scene-controls hidden">
+        <label>截面位置 <output id="slice-position-label">中心 0%</output><input id="slice-position" type="range" min="-100" max="100" value="0"></label>
+        <label>透明度 <output id="slice-opacity-label">100%</output><input id="slice-opacity" type="range" min="5" max="100" value="100"></label>
+        <label class="check-control"><input id="slice-visible" type="checkbox" checked>显示截面</label><button id="apply-slice" type="button">应用</button><button id="reset-slice" type="button">恢复默认位置</button>
+      </div>
+      <div id="streamline-controls" class="scene-controls hidden">
+        <label>线条粗细 <output id="stream-width-label">3</output><input id="stream-width" type="range" min="1" max="8" value="3"></label>
+        <label>透明度 <output id="stream-opacity-label">100%</output><input id="stream-opacity" type="range" min="5" max="100" value="100"></label>
+        <label class="check-control"><input id="stream-visible" type="checkbox" checked>显示流线</label><button id="apply-streamlines" type="button">应用</button>
+      </div>
+      <div class="viewer-help"><span>左键旋转</span><span>滚轮缩放</span><span>中键平移</span><span>坐标单位：m</span></div>
+    </main>
+
+    <aside class="config-panel panel">
+      <div class="config-scroll">
+        <section>
+          <p class="panel-kicker">🛩️ 模型</p>
+          <label class="upload-button" for="model" aria-label="上传模型"><span aria-hidden="true">📤</span><strong id="file-label">选择 STEP / STP</strong><input id="model" name="model" type="file" accept=".step,.stp" required></label>
+          <p class="hint">文件复制到本机模型目录，原文件保持不变。</p>
+          <div id="model-summary" class="model-summary hidden">
+            <div><span>尺寸</span><strong id="model-dimensions">—</strong></div>
+            <div><span>拓扑</span><strong id="model-topology">—</strong></div>
+            <div><span>单位</span><strong>m</strong></div>
+          </div>
+          <div id="model-confidence" class="evidence hidden"><span>来源与可信度</span><strong>Gmsh OCC 从模型读取 · 高</strong><p id="model-evidence">等待检查</p></div>
+          <div id="orientation-confirm" class="orientation-confirm hidden" aria-label="确认模型方向">
+            <strong data-icon="🧭">🧭 方向</strong><p>STEP 不含机头、上方和主翼语义，请确认。</p>
+            <div class="axis-grid">
+              <label>机头方向<select id="nose-axis"><option>-Z</option><option>+Z</option><option>+X</option><option>-X</option><option>+Y</option><option>-Y</option></select></label>
+              <label>上方方向<select id="up-axis"><option>+Y</option><option>-Y</option><option>+Z</option><option>-Z</option><option>+X</option><option>-X</option></select></label>
+              <label>翼展方向<select id="span-axis"><option>+X</option><option>-X</option><option>+Y</option><option>-Y</option><option>+Z</option><option>-Z</option></select></label>
+            </div>
+            <div class="wing-actions orientation-actions">
+              <button id="pick-nose" type="button">🧭 点机头</button>
+              <button id="pick-up" type="button">⬆️ 点上方</button>
+              <button id="undo-orientation" type="button" disabled>↩️ 撤销</button>
+            </div>
+            <p id="orientation-pick-status">当前：主翼点选；也可用上方下拉框修正。</p>
+            <div id="wing-selection" class="wing-selection">
+              <div><strong data-icon="🪽"><span aria-hidden="true">🪽</span> <span>主翼</span></strong><span id="wing-selection-count">0 个曲面</span></div>
+              <p>点左右主翼；再点取消。橙色为已选。</p>
+              <div class="wing-actions"><button id="reset-wing-selection" type="button">↩️ 重选</button></div>
+              <div id="wing-reference-evidence" class="wing-reference-evidence">尚未选择主翼，S_ref、c_ref 和翼展保持原识别值。</div>
+            </div>
+            <button id="confirm-model" type="button">✅ 确认模型</button>
+          </div>
+        </section>
+
+        <section class="condition-section" aria-label="设置工况">
+          <p class="panel-kicker">🌬️ 工况</p>
+          <label>飞行速度 <span>m/s</span><input name="velocity_m_s" type="number" min="5" max="50" step="0.1" value="15" required></label>
+          <label>机头抬起角度（迎角） <span>°</span><input name="angle_of_attack_deg" type="number" min="-15" max="20" step="0.1" value="6" required></label>
+          <label>飞机总质量 <span>kg</span><input name="mass_kg" type="number" min="0.001" step="0.001" value="1" required></label>
+        </section>
+
+        <details id="advanced-settings">
+          <summary>高级设置与识别结果</summary>
+          <p class="details-note">自动值可修改；修改后会保留原始识别依据。</p>
+          <div class="advanced-grid">
+            <label>参考面积 S_ref <span>m²</span><input id="s-ref" name="s_ref_m2" type="number" min="0.0001" step="0.0001" placeholder="请点选主翼或手动输入" required><small>未选择主翼前保持未解决，不使用占位数值</small><button type="button" data-restore-parameter="s_ref_m2">恢复自动值</button></label>
+            <label>参考弦长 c_ref <span>m</span><input id="c-ref" name="c_ref_m" type="number" min="0.0001" step="0.0001" placeholder="请点选主翼或手动输入" required><small>未选择主翼前保持未解决，不使用占位数值</small><button type="button" data-restore-parameter="c_ref_m">恢复自动值</button></label>
+            <label>翼展 span <span>m</span><input id="span-ref" type="number" min="0.0001" step="0.0001" required><small>由主翼选择计算，可人工覆盖并保留原始值</small><button type="button" data-restore-parameter="span_m">恢复自动值</button></label>
+            <label>分析目标<select id="analysis-mode" name="analysis_mode"><option value="geometry_check">几何检查</option><option value="trend" selected>初步趋势</option><option value="standard">标准分析</option><option value="grid_study">三档网格研究</option><option value="custom">自定义</option></select><small id="preset-description">正在读取用途、耗时与证据上限…</small></label>
+            <label>空气密度 <span>kg/m³</span><input name="density_kg_m3" type="number" step="0.001" value="1.225"><small>海平面标准默认</small></label>
+            <label>动力黏度 <span>Pa·s</span><input name="dynamic_viscosity_pa_s" type="number" step="0.0000001" value="0.000017894"></label>
+            <label>目标单元尺寸 <span>m</span><input name="target_cell_size_m" type="number" min="0.0001" step="0.01" value="0.5"></label>
+            <label>最大迭代数<input name="max_iterations" type="number" min="1" step="1" value="500"></label>
+          </div>
+        </details>
+      </div>
+      <p id="form-error" class="error" role="alert"></p>
+      <button id="submit-button" class="primary" type="submit" aria-label="开始分析" disabled>⏳ 请先上传</button>
+    </aside>
+
+    <section class="run-panel panel">
+      <div class="run-head"><div><p class="panel-kicker">⚙️ 计算 · 🌈 结果</p><h2>先判可信，再看结果</h2></div><button id="cancel-button" class="quiet" type="button" disabled>🛑 取消</button></div>
+      <div id="empty-state" class="empty-state">确认模型后开始；先判可信，再显示气动力和流场。</div>
+      <div id="job-view" class="job-view hidden">
+        <div class="status-row"><span id="state-chip" class="chip state-queued">⏳ 排队</span><span id="job-id"></span><span id="stage-text"></span></div>
+        <div class="progress"><div id="progress-bar"></div></div>
+        <div id="credibility-card" class="credibility neutral"><span>🔬 可信度</span><strong id="credibility-text">⏳ 等待评估</strong><p id="credibility-reasons"></p></div>
+        <div id="result-conclusion" class="result-conclusion">完成后将在这里先给出人话结论。</div>
+        <section id="grid-study-view" class="grid-study-view hidden" aria-live="polite">
+          <h3 data-icon="📊"><span aria-hidden="true">📊</span> <span>网格</span></h3>
+          <p id="grid-study-summary">正在创建粗、中、细三个独立任务。</p>
+          <div class="table-wrap"><table><thead><tr><th>档位</th><th>状态</th><th>单元数</th><th>CL</th><th>CD</th><th>耗时</th></tr></thead><tbody id="grid-study-levels"></tbody></table></div>
+          <div id="grid-study-gci" class="grid-study-gci"></div>
+        </section>
+        <section id="user-diagnostic" class="user-diagnostic hidden" aria-live="polite">
+          <h3 id="diagnostic-title">⚠️ 需处理</h3>
+          <p id="diagnostic-happened"></p>
+          <dl><div><dt>可能原因</dt><dd id="diagnostic-causes"></dd></div><div><dt>对结果的影响</dt><dd id="diagnostic-impact"></dd></div><div><dt>现在怎么做</dt><dd id="diagnostic-actions"></dd></div><div><dt>云图</dt><dd id="diagnostic-fields"></dd></div></dl>
+          <button id="conservative-retry" type="button" class="retry-button hidden">使用更稳妥设置重新计算</button>
+        </section>
+        <div class="metric-grid"><div><span>CL · 升力能力</span><strong id="metric-cl">—</strong></div><div><span>CD · 阻力程度</span><strong id="metric-cd">—</strong></div><div><span>L/D · 气动效率</span><strong id="metric-ld">—</strong></div><div><span>实际升力</span><strong id="metric-lift">—</strong><small>N</small></div><div><span>实际阻力</span><strong id="metric-drag">—</strong><small>N</small></div><div><span>升力 / 重量</span><strong id="metric-ratio">—</strong><small>倍</small></div></div>
+        <p class="takeoff-boundary" id="takeoff-boundary"></p>
+        <details class="diagnostics"><summary data-icon="🔬">🔬 专业诊断</summary><pre id="run-log">等待任务更新…</pre><h3>真实产物</h3><div id="artifact-links" class="artifact-links"></div></details>
+      </div>
+    </section>
+
+    <section class="history-panel panel" aria-label="历史任务">
+      <div class="run-head"><div><p class="panel-kicker" data-icon="📁">📁 <span>历史</span></p><h2>本机记录</h2></div></div>
+      <div class="table-wrap"><table><thead><tr><th>任务</th><th>模型</th><th>状态</th><th>可信度</th><th>CL / CD</th></tr></thead><tbody id="history-body"><tr><td colspan="5">暂无任务</td></tr></tbody></table></div>
+    </section>
+  </form>
+  <footer>计算结果用于工程初筛，不能替代适航、风洞或科研认证；升力达到重量也不等于已证明飞机能够安全起飞。</footer>
+  <script src="/static/app.js" defer></script>
+</body>
+</html>

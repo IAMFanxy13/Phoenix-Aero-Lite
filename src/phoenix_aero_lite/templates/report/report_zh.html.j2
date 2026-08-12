@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Phoenix Aero Lite — {{ case_name }}</title>
+  <style>
+    :root { color-scheme: light; --ink:#172033; --muted:#596579; --line:#d9e0ea; --accent:#2457d6; --bad:#a31d2d; --good:#147447; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:#f4f7fb; color:var(--ink); font:14px/1.55 "Microsoft YaHei", "Segoe UI", sans-serif; }
+    main { max-width:1080px; margin:0 auto; padding:32px; }
+    header, section { background:white; border:1px solid var(--line); border-radius:12px; padding:22px; margin-bottom:18px; }
+    h1 { margin:0 0 6px; font-size:28px; } h2 { margin:0 0 14px; font-size:18px; }
+    .muted { color:var(--muted); } .hash { font-family:Consolas,monospace; overflow-wrap:anywhere; }
+    .banner { padding:14px 16px; border-radius:8px; font-weight:700; margin-top:16px; }
+    .valid { color:var(--good); background:#e9f7ef; } .invalid { color:var(--bad); background:#fdecef; }
+    table { width:100%; border-collapse:collapse; } th,td { padding:9px; border-bottom:1px solid var(--line); text-align:left; vertical-align:top; }
+    pre { white-space:pre-wrap; overflow-wrap:anywhere; background:#f6f8fb; padding:12px; border-radius:8px; }
+    img { display:block; max-width:100%; height:auto; margin:10px auto; border-radius:8px; }
+    ul { margin-bottom:0; }
+  </style>
+</head>
+<body><main>
+  <header>
+    <h1>Phoenix Aero Lite 气动分析报告</h1>
+    <div class="muted">算例：{{ case_name }}</div>
+    <div class="hash">输入 SHA-256：{{ input_sha256 }}</div>
+    {% if valid %}
+      <div class="banner valid">当前结果满足工程比较证据门槛</div>
+    {% else %}
+      <div class="banner invalid">当前结果未满足工程结论证据门槛</div>
+    {% endif %}
+  </header>
+  <section aria-label="scientific-evidence">
+    <h2>科学证据状态</h2>
+    <table>
+      <tr><th>执行状态</th><td>{{ execution_status }}</td></tr>
+      <tr><th>数值收敛状态</th><td>{{ convergence_status }}</td></tr>
+      <tr><th>科学用途</th><td>{{ scientific_use_level }}</td></tr>
+      <tr><th>当前算例验证等级</th><td>{{ validation_level }}</td></tr>
+    </table>
+    <p class="muted">validation_level: {{ validation_level }}</p>
+    <details><summary>单个结果量证据</summary><pre>{{ quantity_evidence_json }}</pre></details>
+  </section>
+  <section><h2>软件版本</h2><table>
+    {% for name, version in software_versions %}<tr><th>{{ name }}</th><td>{{ version }}</td></tr>{% endfor %}
+  </table></section>
+  <section><h2>网格质量</h2><pre>{{ mesh_quality_json }}</pre></section>
+  <section><h2>求解器执行证据</h2><table>
+    <tr><th>状态 / 返回码</th><td>{{ process_status }} / {{ exit_code }}</td></tr>
+    <tr><th>命令参数</th><td class="hash">{% for item in argv %}{{ item }}{% if not loop.last %}<br>{% endif %}{% endfor %}</td></tr>
+    <tr><th>工作目录</th><td class="hash">{{ cwd }}</td></tr>
+    <tr><th>开始 / 结束</th><td>{{ started_at }}<br>{{ ended_at }}</td></tr>
+    <tr><th>stdout / stderr</th><td class="hash">{{ stdout_path }}<br>{{ stderr_path }}</td></tr>
+  </table></section>
+  <section><h2>收敛判定</h2>
+    <p>状态：<strong>{{ convergence_status }}</strong>；原因：{{ convergence_reason }}</p>
+    <pre>{{ convergence_thresholds_json }}</pre>
+    <img src="{{ chart_uri }}" alt="SU2 收敛历史">
+  </section>
+  <section><h2>气动力与重量</h2>
+    {% if valid %}
+      <table>
+        <tr><th>CL / CD</th><td>{{ aero.cl.value }} / {{ aero.cd.value }}</td></tr>
+        <tr><th>动压</th><td>{{ aero.dynamic_pressure.value }} {{ aero.dynamic_pressure.unit }}</td></tr>
+        <tr><th>升力 / 阻力</th><td>{{ aero.lift.value }} {{ aero.lift.unit }} / {{ aero.drag.value }} {{ aero.drag.unit }}</td></tr>
+        <tr><th>重量 / 升力裕度</th><td>{{ aero.weight.value }} {{ aero.weight.unit }} / {{ aero.lift_margin.value }} {{ aero.lift_margin.unit }}</td></tr>
+        <tr><th>升重比</th><td>{{ aero.lift_to_weight_ratio.value }}</td></tr>
+        {% if aero.meets_weight_requirement %}<tr><th>判断</th><td>满足重量要求</td></tr>{% endif %}
+      </table>
+    {% else %}
+      {% if aero.cl and aero.cd %}
+      <table>
+        <tr><th>非工程用途 CL / CD</th><td>{{ aero.cl.value }} / {{ aero.cd.value }}</td></tr>
+      </table>
+      {% endif %}
+      <p class="muted">未展示升力、阻力或重量通过结论，避免把未收敛数据误当作工程结果。</p>
+    {% endif %}
+  </section>
+  {% if screenshot_uri %}<section><h2>流场截图</h2><img src="{{ screenshot_uri }}" alt="流场结果截图"></section>{% endif %}
+  <section><h2>警告与限制</h2>
+    {% if warnings %}<ul>{% for warning in warnings %}<li>{{ warning }}</li>{% endfor %}</ul>{% else %}<p>无。</p>{% endif %}
+  </section>
+</main></body></html>

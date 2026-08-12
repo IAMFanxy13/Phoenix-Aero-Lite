@@ -1,0 +1,39 @@
+name: Bug report / 缺陷报告
+description: Report reproducible software behaviour; never attach private CAD by default.
+title: "[Bug] "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: "Do not upload private CAD, tokens, local paths or full task folders. Provide a minimal public/synthetic reproduction."
+  - type: textarea
+    id: happened
+    attributes:
+      label: What happened?
+      description: Include the visible Chinese message and machine error code.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction steps
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Phoenix version or commit
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Sanitized environment check
+      description: Windows/Python/Gmsh/SU2 versions only; remove absolute paths.
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy confirmation
+      options:
+        - label: I removed private CAD, credentials, user names and absolute local paths.
+          required: true

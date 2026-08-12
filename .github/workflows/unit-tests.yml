@@ -1,0 +1,41 @@
+name: Unit tests
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+      - name: Setup official PyVista headless display
+        uses: pyvista/setup-headless-display-action@v3
+        with:
+          qt: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - name: Install package and unit-test dependencies
+        run: python -m pip install -e ".[dev]"
+      - name: Run unit tests
+        run: python -m pytest tests/unit -q
+      - name: Compile source
+        run: python -m compileall -q src
+      - name: Check dependency consistency
+        run: python -m pip check
+      - name: Check tracked diff
+        shell: pwsh
+        run: |
+          git diff --check
+          if ($LASTEXITCODE -ne 0) { throw "Tracked files contain whitespace errors." }
+          git diff --exit-code -- .
+          if ($LASTEXITCODE -ne 0) { throw "Tests changed tracked files." }
+          git diff --cached --exit-code -- .
+          if ($LASTEXITCODE -ne 0) { throw "Tests staged tracked-file changes." }

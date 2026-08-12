@@ -1,0 +1,17 @@
+# Phase -1 validation environment. Versions are the builds exercised on
+# Windows/Python 3.12; transitive versions are recorded by pip-freeze.txt.
+gmsh==4.15.2
+meshio==5.3.5
+pyvista==0.48.4
+pyvistaqt==0.12.0
+PySide6==6.11.1
+pandas==3.0.3
+matplotlib==3.11.1
+Jinja2==3.1.6
+pytest==9.1.1
+psutil==7.2.2
+packaging==26.2
+trame==3.13.2
+trame-vtk==2.11.8
+trame-vuetify==3.2.5
+nest-asyncio2==1.7.2

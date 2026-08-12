@@ -1,0 +1,12 @@
+changelog:
+  exclude:
+    labels: ["skip-changelog"]
+  categories:
+    - title: Scientific and solver workflow
+      labels: ["scientific", "solver", "meshing"]
+    - title: User experience
+      labels: ["enhancement", "ux"]
+    - title: Fixes
+      labels: ["bug"]
+    - title: Other changes
+      labels: ["*"]

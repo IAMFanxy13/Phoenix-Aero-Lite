@@ -1,0 +1,53 @@
+.venv/
+.venv.failed-*/
+.worktrees/
+.superpowers/
+
+# Machine-local tool discovery contains absolute paths.
+config/local_tools.json
+
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+build/
+dist/
+build_background/
+dist_background/
+build_acceptance/
+dist_acceptance/
+tools/
+
+# Upstream checkouts and generated validation payloads stay local. Text logs,
+# metadata, manifests and summaries under artifacts/upstream_validation remain trackable.
+artifacts/upstream_validation/upstream_sources/
+artifacts/upstream_validation/downloads/
+artifacts/upstream_validation/**/work/
+artifacts/upstream_validation/**/t20_data.step
+
+# User-directed SU2 Windows installation and solver evidence is local to this machine.
+artifacts/upstream_validation/su2_install/
+artifacts/upstream_validation/su2_quickstart/
+artifacts/upstream_validation/su2_inc_rans_sst/
+artifacts/solver_tuning/
+artifacts/visualization_research/
+artifacts/product_validation/
+artifacts/e2e/dev_*
+artifacts/validation_matrix/**/*.msh
+artifacts/validation_matrix/**/*.su2
+artifacts/validation_matrix/**/*.vtu
+artifacts/validation_matrix/nasa_naca0012_sst_897x257/*
+!artifacts/validation_matrix/nasa_naca0012_sst_897x257/validation_summary.json
+artifacts/validation_matrix/cgns_probe/
+artifacts/validation_matrix/cgns_probe_run/
+artifacts/validation_matrix/**/*.vtk
+artifacts/validation_matrix/su2_official_sst_grid_family_runtime/**/*.dat
+
+# Runtime cases and CFD outputs can be very large.
+cases/
+outputs/
+web-data/
+

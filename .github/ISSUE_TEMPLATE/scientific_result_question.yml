@@ -1,0 +1,36 @@
+name: Scientific result question / 科学结果问题
+description: Ask about convergence, mesh, Y+, coefficients, validation or uncertainty.
+title: "[Science] "
+labels: ["scientific-review", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: "A completed run is not necessarily converged or validated. Share only sanitized public evidence."
+  - type: dropdown
+    id: topic
+    attributes:
+      label: Topic
+      options: ["Convergence", "Mesh quality", "Boundary layer / Y+", "CL/CD/L/D", "GCI", "Benchmark comparison", "Other"]
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence status and machine codes
+      description: Include scientific-use level, validation level and relevant reason codes.
+    validations:
+      required: true
+  - type: textarea
+    id: conditions
+    attributes:
+      label: Reproducible conditions
+      description: Mach/velocity, Reynolds inputs, AoA, model, reference values, mesh family and solver version.
+    validations:
+      required: true
+  - type: checkboxes
+    id: claims
+    attributes:
+      label: Classification
+      options:
+        - label: I am not presenting an unconverged or unmatched result as validated.
+          required: true

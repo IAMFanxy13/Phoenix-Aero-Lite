@@ -1,0 +1,24 @@
+name: Feature request / 功能建议
+description: Propose a user-visible capability grounded in an upstream API or reference.
+title: "[Feature] "
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: User problem
+      description: Describe the workflow problem, not only a preferred implementation.
+    validations:
+      required: true
+  - type: textarea
+    id: upstream
+    attributes:
+      label: Upstream reuse candidate
+      description: Official docs, maintained project, API or standard that may be reused.
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Scientific and UX impact
+      description: What could this change imply or misrepresent?
+    validations:
+      required: true
