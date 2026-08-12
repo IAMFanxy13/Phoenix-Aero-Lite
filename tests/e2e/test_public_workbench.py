@@ -124,7 +124,11 @@ def _ready_report() -> FirstRunReport:
     )
 
 
-def _public_grid_result(case_root: Path, target_cell_size_m: float):
+def _public_grid_result(
+    source: Path,
+    case_root: Path,
+    target_cell_size_m: float,
+):
     target = round(target_cell_size_m, 2)
     values = {
         0.75: (4000, 8000, 0.50, 0.050),
@@ -143,10 +147,27 @@ def _public_grid_result(case_root: Path, target_cell_size_m: float):
     flow = volume.cast_to_unstructured_grid()
     flow.point_data["Velocity"] = np.tile((15.0, 0.0, 0.0), (flow.n_points, 1))
     flow.save(case_root / "flow.vtu")
-    surface = pv.Cube(center=(0.9, 0.8, 0.7), x_length=0.4, y_length=0.5, z_length=0.3).triangulate()
-    surface.point_data["Pressure_Coefficient"] = np.linspace(-0.8, 0.6, surface.n_points)
-    surface.point_data["Pressure"] = np.linspace(100_900.0, 101_400.0, surface.n_points)
-    surface.point_data["Y_Plus"] = np.linspace(0.2, 3.7, surface.n_points)
+    preview = GmshGeometryAdapter().build_surface_preview(
+        source,
+        case_root / "public_uav_surface.vtk",
+    )
+    surface = (
+        pv.read(preview.mesh_path)
+        .extract_surface(algorithm="dataset_surface")
+        .triangulate()
+    )
+    points = np.asarray(surface.points)
+    minimum = points.min(axis=0)
+    ranges = np.maximum(np.ptp(points, axis=0), 1e-12)
+    axial = (points[:, 0] - minimum[0]) / ranges[0]
+    spanwise = np.abs(points[:, 1]) / max(np.max(np.abs(points[:, 1])), 1e-12)
+    vertical = (points[:, 2] - minimum[2]) / ranges[2]
+    pressure_coefficient = -0.85 + 1.45 * axial - 0.25 * spanwise
+    surface.point_data["Pressure_Coefficient"] = pressure_coefficient
+    surface.point_data["Pressure"] = 101_325.0 + 480.0 * pressure_coefficient
+    surface.point_data["Y_Plus"] = 0.2 + 3.5 * (
+        0.45 * axial + 0.35 * spanwise + 0.20 * vertical
+    )
     surface.cast_to_unstructured_grid().save(case_root / "surface_flow.vtu")
     stdout = case_root / "stdout.txt"
     stderr = case_root / "stderr.txt"
@@ -240,14 +261,41 @@ def _public_grid_result(case_root: Path, target_cell_size_m: float):
     )
 
 
+def test_public_result_surface_matches_uploaded_uav(tmp_path: Path):
+    model = _public_synthetic_aircraft(tmp_path / "public-uav.step")
+    case_root = tmp_path / "case"
+    case_root.mkdir()
+
+    result = _public_grid_result(model, case_root, 0.5)
+    surface = pv.read(result.context["surface_flow_vtu"])
+    inspection = GmshGeometryAdapter().inspect_step(model)
+    minimum = inspection.bounding_box_min_m
+    maximum = inspection.bounding_box_max_m
+    expected_bounds = (
+        minimum[0], maximum[0],
+        minimum[1], maximum[1],
+        minimum[2], maximum[2],
+    )
+
+    np.testing.assert_allclose(surface.bounds, expected_bounds, atol=0.002)
+    assert surface.n_cells > 100
+    assert {
+        "Pressure_Coefficient",
+        "Pressure",
+        "Y_Plus",
+    }.issubset(surface.point_data)
+
+
 @contextmanager
 def _serve_public_app(root: Path, *, runner=None):
     jobs = LocalJobService(
         root / "jobs",
         runner=runner
         or (
-            lambda _source, parameters, case_root, _token: _public_grid_result(
-                case_root, parameters.mesh.target_cell_size_m
+            lambda source, parameters, case_root, _token: _public_grid_result(
+                source,
+                case_root,
+                parameters.mesh.target_cell_size_m,
             )
         ),
     )
